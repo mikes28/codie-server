@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Codie Control</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="shell">
+    <div class="brand">
+      <span class="mark">C</span>
+      <div>
+        <div class="brand-name">Codie<span class="brand-sub">control</span></div>
+        <div class="brand-line" id="brand-line">disconnected</div>
+      </div>
+    </div>
+    <div class="shell-actions">
+      <button class="btn btn-outline" id="scan-btn"><span class="ic">&#128269;</span> Scan robots</button>
+      <span class="pill" id="socket-pill">socket &#9679;</span>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <aside class="sidebar">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Robots</h2>
+          <span class="count" id="robot-count">0</span>
+        </div>
+        <p class="muted">Only Codie robots are shown — other BLE devices are filtered.</p>
+        <ul class="robot-list" id="robot-list"></ul>
+        <p class="empty" id="robots-empty">No robots found. Click "Scan robots".</p>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Scripts</h2>
+        </div>
+        <p class="muted">Python robot-scripts run on the backend through the REST API.</p>
+        <div class="ctrl-row">
+          <input type="text" id="script-name" placeholder="e.g. square" />
+          <button class="btn" id="script-run">Run</button>
+          <button class="btn btn-danger" id="script-stop">Stop</button>
+        </div>
+        <div class="script-log" id="script-log"></div>
+      </div>
+    </aside>
+
+    <section class="main">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Control</h2>
+          <span class="badge" id="robot-badge">—</span>
+        </div>
+        <div class="grid grid-4">
+          <button class="btn btn-ctrl" data-cmd="beep" data-param='{"ms": 500}'>&#9202; Beep</button>
+          <button class="btn btn-ctrl" data-cmd="led" data-param='{"color": "green"}'>&#128081; LED all</button>
+          <button class="btn btn-ctrl" data-cmd="forward" data-param='{"cm": 20}'>&#8593; Forward</button>
+          <button class="btn btn-ctrl" data-cmd="backward" data-param='{"cm": 20}'>&#8595; Backward</button>
+          <button class="btn btn-ctrl" data-cmd="turn" data-param='{"deg": 90}'>&#8635; Turn R</button>
+          <button class="btn btn-ctrl" data-cmd="turn" data-param='{"deg": -90}'>&#8634; Turn L</button>
+          <button class="btn btn-ctrl" data-cmd="stop" data-param='{}'>&#9200; Stop</button>
+          <button class="btn btn-danger btn-ctrl" data-cmd="ledsOff" data-param='{}'>&#128064; LEDs off</button>
+        </div>
+
+        <div class="custom">
+          <h3>Custom command</h3>
+          <div class="inline-form">
+            <label>Command</label>
+            <select id="cmd-name">
+              <option value="beep">beep</option>
+              <option value="morse">morse</option>
+              <option value="tune">tune</option>
+              <option value="led">led</option>
+              <option value="ledSingle">led single</option>
+              <option value="forward">forward</option>
+              <option value="backward">backward</option>
+              <option value="turn">turn</option>
+              <option value="stop">stop</option>
+              <option value="status">status</option>
+              <option value="battery">battery</option>
+              <option value="sonar">sonar</option>
+              <option value="light">light</option>
+              <option value="line">line</option>
+              <option value="mic">mic</option>
+            </select>
+            <label>Params (JSON)</label>
+            <input type="text" id="cmd-params" value='{}' placeholder='{}' />
+            <button class="btn" id="cmd-send">Send</button>
+          </div>
+        </div>
+
+        <div class="morse">
+          <h3>Morse code</h3>
+          <div class="inline-form">
+            <label>Text</label>
+            <input type="text" id="morse-text" value="SOS" />
+            <button class="btn" id="morse-send">Send</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Telemetry</h2>
+          <span class="badge" id="telemetry-age">—</span>
+        </div>
+        <div class="telemetry" id="telemetry">
+          <div class="t-item">
+            <span class="t-label">Battery</span>
+            <span class="t-value" id="t-battery">—</span>
+            <span class="t-unit">%</span>
+          </div>
+          <div class="t-item">
+            <span class="t-label">Sonar</span>
+            <span class="t-value" id="t-sonar">—</span>
+            <span class="t-unit">mm</span>
+          </div>
+          <div class="t-item">
+            <span class="t-label">Light</span>
+            <span class="t-value" id="t-light">—</span>
+          </div>
+          <div class="t-item">
+            <span class="t-label">Line L</span>
+            <span class="t-value" id="t-line-l">—</span>
+          </div>
+          <div class="t-item">
+            <span class="t-label">Line R</span>
+            <span class="t-value" id="t-line-r">—</span>
+          </div>
+          <div class="t-item">
+            <span class="t-label">Mic</span>
+            <span class="t-value" id="t-mic">—</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel mic-panel" id="mic-panel" style="display:none;">
+        <div class="panel-head">
+          <h2>Microphone</h2>
+          <button class="btn btn-outline" id="mic-toggle">Start listening</button>
+        </div>
+        <div class="mic-meter">
+          <div class="mic-bar" id="mic-bar"></div>
+          <div class="mic-reading" id="mic-reading">0</div>
+        </div>
+      </div>
+
+      <div class="panel advanced" id="advanced-panel" style="display:none;">
+        <div class="panel-head">
+          <h2>Advanced</h2>
+          <span class="muted small">double-click the Codie header to toggle</span>
+        </div>
+        <div class="inline-form">
+          <label>Console command</label>
+          <input type="text" id="console-cmd" placeholder='get appSys ver' />
+          <button class="btn" id="console-send">Send</button>
+        </div>
+        <div class="console-out" id="console-out"></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
