@@ -9,8 +9,7 @@ The firmware is a Rust port of the original binary, documented in detail at:
 
 ## Firmware
 
-[Codie Firmware Dump](https://github.com/mikes28/codie-firmware-dump) —
-`/home/mikes/Documents/codie-firmware-dump/`
+[Codie Firmware Dump](https://github.com/mikes28/codie-firmware)
 
 The firmware documents every feature in the STM32 binary, from bootloader through
 command protocol, LED control, sensor readings, and periodic engines. This webapp
