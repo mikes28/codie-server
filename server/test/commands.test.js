@@ -30,3 +30,28 @@ test('COMMAND_NAMES lists all commands', async () => {
   assert.ok(COMMAND_NAMES.includes('forward'));
   assert.ok(COMMAND_NAMES.includes('beep'));
 });
+test('driveSpeed validates and forwards', async () => {
+  const calls = [];
+  const client = { driveSpeed: async (l, r) => calls.push([l, r]) };
+  const result = await runCommand(client, 'driveSpeed', { left: -40, right: 60 });
+  assert.deepStrictEqual(calls, [[-40, 60]]);
+  assert.deepStrictEqual(result, { action: 'driveSpeed', left: -40, right: 60 });
+});
+
+test('driveSpeed rejects out-of-range', async () => {
+  const client = { driveSpeed: async () => {} };
+  await assert.rejects(() => runCommand(client, 'driveSpeed', { left: 200, right: 0 }));
+  await assert.rejects(() => runCommand(client, 'driveSpeed', { left: 'x', right: 0 }));
+});
+
+test('proxy forwards text and returns reply', async () => {
+  const client = { proxyCommand: async (text) => `echo:${text}` };
+  const result = await runCommand(client, 'proxy', { text: 'get appSys ver' });
+  assert.deepStrictEqual(result, { action: 'proxy', text: 'get appSys ver', reply: 'echo:get appSys ver' });
+});
+
+test('proxy rejects empty text', async () => {
+  const client = { proxyCommand: async () => '' };
+  await assert.rejects(() => runCommand(client, 'proxy', { text: '' }));
+  await assert.rejects(() => runCommand(client, 'proxy', { text: '   ' }));
+});

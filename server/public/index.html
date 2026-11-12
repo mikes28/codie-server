@@ -45,6 +45,46 @@
         </div>
         <div class="script-log" id="script-log"></div>
       </div>
+      <div class="panel" id="p6-mac-panel">
+        <div class="panel-head"><h2>MAC Allowlist</h2></div>
+        <div class="inline-form">
+          <label>MAC address</label>
+          <input type="text" id="p6-mac-input" placeholder="AA:BB:CC:DD:EE:FF" />
+          <button class="btn" id="p6-mac-add">Add</button>
+        </div>
+        <label style="display:inline-flex;align-items:center;gap:8px;margin-top:8px">
+          <input type="checkbox" id="p6-mac-only" />
+          <span>macOnly — only allowlisted robots are discovered</span>
+        </label>
+        <ul class="robot-list" id="p6-mac-list"></ul>
+        <p class="muted small">Allowlist is applied to BLE discovery via POST /api/config.</p>
+      </div>
+
+      <div class="panel" id="p6-filter-panel">
+        <div class="panel-head"><h2>Robot Filter</h2></div>
+        <div class="inline-form">
+          <label>Name filter</label>
+          <input type="text" id="p6-name-filter" placeholder="Codie" />
+          <label>UUID filter</label>
+          <input type="text" id="p6-uuid-filter" placeholder="52af0001-..." />
+          <label>MAC allow</label>
+          <input type="text" id="p6-mac-allow" placeholder="comma-separated MACs" />
+          <label>MAC block</label>
+          <input type="text" id="p6-mac-block" placeholder="comma-separated MACs" />
+          <button class="btn btn-primary" id="p6-filter-apply">Apply</button>
+        </div>
+        <p class="muted small">Filters name, UUID and MAC allow/block lists; applied via POST /api/config.</p>
+      </div>
+
+      <div class="panel" id="p6-autoconnect-panel">
+        <div class="panel-head"><h2>Auto-connect</h2></div>
+        <div class="inline-form">
+          <label>MAC addresses (comma-separated)</label>
+          <input type="text" id="p6-autoconnect-macs" placeholder="AA:BB:..., CC:DD:..." />
+          <button class="btn" id="p6-autoconnect-save">Save</button>
+        </div>
+        <p class="muted small">Robots to auto-connect on startup. Stored via POST /api/config.</p>
+      </div>
     </aside>
 
     <section class="main">
@@ -158,6 +198,225 @@
           <button class="btn" id="console-send">Send</button>
         </div>
         <div class="console-out" id="console-out"></div>
+      </div>
+      <div class="panel" id="status-panel">
+        <div class="panel-head">
+          <h2>Status</h2>
+          <span class="badge" id="status-link">link —</span>
+        </div>
+        <div class="grid grid-4">
+          <div class="t-item">
+            <span class="t-label">USB VBUS</span>
+            <span class="t-value" id="s-usb">—</span>
+          </div>
+          <div class="t-item">
+            <span class="t-label">Bootloader</span>
+            <span class="t-value" id="s-boot">—</span>
+          </div>
+          <div class="t-item">
+            <span class="t-label">BLE Link</span>
+            <span class="t-value" id="s-link">—</span>
+          </div>
+          <div class="t-item">
+            <span class="t-label">Fault</span>
+            <span class="t-value" id="s-fault">—</span>
+          </div>
+        </div>
+        <div class="inline-form" style="margin-top:8px">
+          <span class="t-label">nFault</span>
+          <span class="t-value" id="s-nfault">—</span>
+          <button class="btn" id="status-refresh">Refresh</button>
+        </div>
+      </div>
+
+      <div class="panel" id="led-panel">
+        <div class="panel-head"><h2>LED</h2></div>
+        <div class="inline-form">
+          <label>LED</label>
+          <input type="number" id="led-index" value="1" min="1" max="12" />
+          <label>Color</label>
+          <input type="color" id="led-color" value="#22c3aa" />
+          <button class="btn" id="led-set">Set LED</button>
+          <button class="btn" id="led-all">Set All</button>
+          <button class="btn btn-danger" id="led-off">LEDs Off</button>
+        </div>
+        <div class="inline-form">
+          <label>Brightness</label>
+          <input type="range" id="led-brightness" min="0" max="255" value="255" />
+          <span class="t-value" id="led-brightness-val">255</span>
+          <button class="btn" id="brightness-set">Set</button>
+          <button class="btn" id="brightness-get">Get</button>
+        </div>
+        <div class="inline-form">
+          <label>Animation</label>
+          <button class="btn" id="led-anim-chase">Chase (5)</button>
+          <button class="btn" id="led-anim-sine">Sine (6)</button>
+          <button class="btn" id="led-anim-stop">Stop</button>
+        </div>
+        <div class="strip" id="led-strip"></div>
+        <p class="muted small">12-LED ARGB strip (TIM15+DMA)</p>
+      </div>
+
+      <div class="panel" id="drive-panel">
+        <div class="panel-head"><h2>Drive</h2></div>
+        <div class="inline-form">
+          <label>Distance (mm)</label>
+          <input type="number" id="drive-dist" value="200" />
+          <label>Speed (%)</label>
+          <input type="number" id="drive-dist-speed" value="40" min="-100" max="100" />
+          <button class="btn" id="drive-dist-go">Go</button>
+        </div>
+        <div class="inline-form">
+          <label>Turn (°)</label>
+          <input type="number" id="drive-turn" value="90" min="-360" max="360" />
+          <label>Speed (%)</label>
+          <input type="number" id="drive-turn-speed" value="40" min="-100" max="100" />
+          <button class="btn" id="drive-turn-go">Go</button>
+        </div>
+        <div class="inline-form">
+          <label>Left (%)</label>
+          <input type="number" id="drive-left" value="0" min="-100" max="100" />
+          <label>Right (%)</label>
+          <input type="number" id="drive-right" value="0" min="-100" max="100" />
+          <button class="btn" id="drive-speed-go">Set Speed</button>
+          <button class="btn btn-danger" id="drive-stop">Stop</button>
+        </div>
+        <div class="grid grid-4">
+          <div class="t-item"><span class="t-label">Fault</span><span class="t-value" id="drive-fault">—</span></div>
+          <div class="t-item"><span class="t-label">nFault</span><span class="t-value" id="drive-nfault">—</span></div>
+        </div>
+      </div>
+
+      <div class="panel" id="sensors-panel">
+        <div class="panel-head">
+          <h2>Sensors</h2>
+          <span class="badge" id="sensors-age">—</span>
+        </div>
+        <div class="grid grid-4">
+          <div class="t-item"><span class="t-label">Temperature</span><span class="t-value" id="t-temp">—</span><span class="t-unit">°C</span></div>
+          <div class="t-item"><span class="t-label">Battery</span><span class="t-value" id="t-batt">—</span><span class="t-unit">%</span></div>
+          <div class="t-item"><span class="t-label">Sonar</span><span class="t-value" id="t-sonar2">—</span><span class="t-unit">mm</span></div>
+          <div class="t-item"><span class="t-label">Light</span><span class="t-value" id="t-light2">—</span></div>
+          <div class="t-item"><span class="t-label">Line L</span><span class="t-value" id="t-line-l2">—</span></div>
+          <div class="t-item"><span class="t-label">Line R</span><span class="t-value" id="t-line-r2">—</span></div>
+          <div class="t-item"><span class="t-label">Mic</span><span class="t-value" id="t-mic2">—</span></div>
+        </div>
+        <div class="inline-form">
+          <span class="t-label">Line (bin)</span>
+          <span class="t-value" id="t-line-bin">—</span>
+          <button class="btn" id="sensors-refresh">Refresh</button>
+        </div>
+      </div>
+
+      <div class="panel" id="command-panel">
+        <div class="panel-head"><h2>Command</h2></div>
+        <div class="inline-form">
+          <label>Proxy command</label>
+          <input type="text" id="proxy-cmd" placeholder='set hwiLed argb all 255 0 0' />
+          <button class="btn" id="proxy-send">Send</button>
+        </div>
+        <div class="inline-form">
+          <label>Greeting</label>
+          <input type="text" id="greeting-cmd" placeholder='get appSys ver' />
+          <button class="btn" id="greeting-send">Greet</button>
+        </div>
+        <div class="inline-form">
+          <label>Log level</label>
+          <select id="log-level">
+            <option value="inf">inf</option>
+            <option value="dbg">dbg</option>
+            <option value="wrn">wrn</option>
+            <option value="err">err</option>
+          </select>
+          <button class="btn" id="log-set">Set</button>
+        </div>
+        <div class="console-out" id="command-out"></div>
+        <p class="muted small">Errors surface "Invalid command!", "No interface:", buffer overflow.</p>
+      </div>
+      <div class="panel admin-panel" id="p9-admin-panel">
+        <div class="panel-head"><h2>Admin</h2></div>
+
+        <div class="admin-section">
+          <h3>Bluetooth Management</h3>
+          <div class="inline-form">
+            <button class="btn btn-outline" id="p9-bt-scan"><span class="ic">&#128269;</span> Scan</button>
+            <button class="btn" id="p9-bt-toggle">Toggle Bluetooth</button>
+          </div>
+          <div class="table-wrap">
+            <table class="inventory-table" id="p9-connected-list">
+              <thead>
+                <tr>
+                  <th>Address</th><th>Name</th><th>Status</th><th>RSSI</th><th>Last seen</th><th>Firmware</th><th>Actions</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="inline-form" style="margin-top:8px">
+            <label>MAC allowlist</label>
+            <input type="text" id="p9-mac-input" placeholder="AA:BB:CC:DD:EE:FF" />
+            <button class="btn" id="p9-mac-add">Add</button>
+            <label style="margin-left:8px;display:inline-flex;align-items:center;gap:6px">
+              <input type="checkbox" id="p9-mac-only" />
+              <span>macOnly</span>
+            </label>
+          </div>
+          <ul class="mac-list" id="p9-mac-list"></ul>
+          <div class="inline-form" style="margin-top:6px">
+            <label>Auto-connect MACs</label>
+            <input type="text" id="p9-autoconnect-macs" placeholder="comma-separated" />
+            <button class="btn" id="p9-autoconnect-save">Save</button>
+          </div>
+        </div>
+
+        <div class="admin-section">
+          <h3>Robot Inventory</h3>
+          <div class="table-wrap">
+            <table class="inventory-table" id="p9-inventory-table">
+              <thead>
+                <tr>
+                  <th>Address</th><th>Name</th><th>Variant</th><th>Connected</th><th>RSSI</th><th>Last seen</th><th>Firmware</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="admin-section">
+          <h3>Global Settings</h3>
+          <div class="inline-form grid-4">
+            <label>Default robot filter</label>
+            <input type="text" id="p9-default-filter" placeholder="Codie" />
+            <label>Default LED color</label>
+            <input type="color" id="p9-default-led" value="#22c3aa" />
+            <label>Default drive speed (%)</label>
+            <input type="number" id="p9-default-speed" min="-100" max="100" value="40" />
+            <label>System log level</label>
+            <select id="p9-log-level">
+              <option value="inf">inf</option>
+              <option value="dbg">dbg</option>
+              <option value="wrn">wrn</option>
+              <option value="err">err</option>
+            </select>
+            <button class="btn btn-primary" id="p9-settings-save">Save settings</button>
+          </div>
+          <p class="muted small">Global settings are applied to BLE discovery config via POST /api/config.</p>
+        </div>
+
+        <div class="admin-section">
+          <h3>Robot Operations</h3>
+          <div class="inline-form grid-4">
+            <button class="btn" id="p9-op-fw-reset">Firmware reset</button>
+            <button class="btn" id="p9-op-bootloader">Bootloader entry</button>
+            <button class="btn" id="p9-op-power-on">Power hold on</button>
+            <button class="btn btn-danger" id="p9-op-power-off">Power hold off</button>
+            <label>Broadcast command</label>
+            <input type="text" id="p9-broadcast-cmd" placeholder='set hwiLed argb all 255 0 0' />
+            <button class="btn btn-primary" id="p9-broadcast-send">Broadcast to all</button>
+          </div>
+          <p class="muted small">Operations are sent as proxy console commands to connected robots.</p>
+        </div>
       </div>
     </section>
   </div>
