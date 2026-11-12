@@ -73,13 +73,26 @@ export function attachRealtime({ io, registry, scripts = null }) {
 
     // advanced firmware commands (console protocol)
     socket.on('advanced:command', async (payload = {}) => {
-      // forwarded through the command layer as a console op
-      socket.emit('error', { message: 'advanced commands require a console session' });
+      try {
+        const result = await registry.command(payload.address, 'proxy', {
+          text: payload.cmd ?? '',
+        });
+        socket.emit('command-result', { action: 'proxy', ...result });
+      } catch (error) {
+        socket.emit('error', { message: error.message });
+      }
     });
 
     // console commands (get|set|call interface op [args...])
     socket.on('console:command', async (payload = {}) => {
-      socket.emit('error', { message: 'console commands not exposed over socket' });
+      try {
+        const result = await registry.command(payload.address, 'proxy', {
+          text: payload.cmd ?? '',
+        });
+        socket.emit('command-result', { action: 'proxy', ...result });
+      } catch (error) {
+        socket.emit('error', { message: error.message });
+      }
     });
   });
 

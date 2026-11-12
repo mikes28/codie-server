@@ -46,6 +46,23 @@ export function createRobotRouter({ registry, filters = {}, scripts = null }) {
     });
   });
 
+  // POST /api/config — update BLE discovery filters at runtime
+  router.post('/config', asyncRoute(async (req, res) => {
+    const { ble } = req.body || {};
+    if (!ble || typeof ble !== 'object') {
+      const err = new Error('Missing ble config');
+      err.status = 400;
+      throw err;
+    }
+    const updated = registry.setFilters(ble);
+    res.json({ ble: {
+      nameFilter: updated.nameFilter || 'Codie',
+      serviceUuids: updated.serviceUuids || [],
+      macAllowlist: updated.macAllowlist || [],
+      macOnly: Boolean(updated.macOnly),
+    } });
+  }));
+
   // GET /api/robots — all known robots + telemetry
   router.get('/robots', (_req, res) => {
     res.json({ robots: registry.list() });
