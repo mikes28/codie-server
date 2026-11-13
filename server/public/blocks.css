@@ -1,0 +1,255 @@
+/*
+ * Codie Block Editor — block-based programming interface.
+ * Reuses the CSS variable tokens from style.css (--bg, --panel, --text, --accent, ...).
+ */
+
+.blocks-wrap {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 56px);
+  padding: 0;
+}
+
+/* Keep sidebar narrow and main filling space on desktop. */
+.blocks-wrap .sidebar {
+  width: 250px;
+  flex-shrink: 0;
+}
+.blocks-wrap .main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* ---- palette ---- */
+.palette-category {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  margin: 4px 0;
+  color: var(--text);
+  font-size: 12px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: default;
+  user-select: none;
+}
+.palette-category:hover {
+  background: #162137;
+  border-color: var(--outline);
+}
+.palette-category strong {
+  color: var(--accent);
+}
+
+/* ---- workspace ---- */
+.panel > .workspace {
+  flex: 1;
+  position: relative;
+  background: var(--bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 10px;
+  min-height: 0;
+}
+.workspace-empty {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 10px;
+  pointer-events: none;
+  user-select: none;
+}
+.workspace-actions {
+  margin-left: 10px;
+  font-size: 12px;
+}
+
+/* ---- block base ---- */
+.block {
+  position: absolute;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-left: 4px solid;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 12px;
+  color: var(--text);
+  cursor: grab;
+  user-select: none;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  z-index: 5;
+}
+.block:active {
+  cursor: grabbing;
+}
+.block.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(34, 195, 170, 0.25);
+}
+.block.handle {
+  cursor: grab;
+}
+.block:active .handle {
+  cursor: grabbing;
+}
+.block.dragging {
+  opacity: 0.7;
+  border-color: var(--accent);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+.block.insert-marker {
+  border-color: var(--accent) !important;
+}
+.block.disabled {
+  opacity: 0.45;
+}
+.block .ic {
+  font-size: 14px;
+  line-height: 1;
+  margin-right: 6px;
+}
+.block .field {
+  margin: 2px 0;
+}
+.block fieldset {
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  padding: 2px 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 11px;
+  margin: 2px 0 0;
+  min-width: 90px;
+}
+.block input {
+  background: var(--bg);
+  border: 1px solid var(--panel-border);
+  color: var(--text);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: 11px;
+  width: 100%;
+}
+.block select {
+  background: var(--bg);
+  border: 1px solid var(--panel-border);
+  color: var(--text);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: 11px;
+  width: 100%;
+}
+.block .stmt-input {
+  border: 1px dashed var(--outline);
+  border-radius: 4px;
+  margin: 4px 0 0;
+  min-height: 20px;
+  background: rgba(34, 195, 170, 0.03);
+}
+.block .stmt-empty {
+  color: var(--muted);
+  font-size: 10px;
+  padding: 2px 6px;
+  font-style: italic;
+}
+
+/* block category colors (border-left) */
+.block.c-movement { border-left-color: var(--c1, var(--accent)); }
+.block.c-sound { border-left-color: var(--c2, #6366f1); }
+.block.c-led { border-left-color: var(--c3, #f472b6); }
+.block.c-control { border-left-color: var(--c4, #fbbf24); }
+.block.c-movement .block-title { color: var(--c1, var(--accent)); }
+.block.c-sound .block-title { color: var(--c2, #6366f1); }
+.block.c-led .block-title { color: var(--c3, #f472b6); }
+.block.c-control .block-title { color: var(--c4, #fbbf24); }
+
+.block-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  font-size: 12.5px;
+}
+
+/* ---- trash ---- */
+.trash {
+  position: absolute;
+  bottom: 14px;
+  left: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
+  background: var(--panel);
+  border: 2px dashed var(--panel-border);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  z-index: 20;
+  pointer-events: none;
+  user-select: none;
+}
+.trash.over {
+  border-style: solid;
+  border-color: var(--danger);
+  background: rgba(229, 99, 99, 0.1);
+  color: var(--danger);
+}
+.trash .ic { font-size: 20px; }
+
+/* ---- code panel ---- */
+.code-panel {
+  height: 42%;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.code-actions {
+  display: flex;
+  gap: 6px;
+}
+.code-wrap {
+  flex: 1;
+  position: relative;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  background: #0b0f19;
+  overflow: auto;
+}
+#blocks-code {
+  width: 100%;
+  height: 100%;
+  padding: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  color: var(--text);
+  background: #0b0f19;
+  border: none;
+  resize: none;
+  outline: none;
+  box-sizing: border-box;
+}
+#blocks-code::placeholder { color: var(--muted); }
+
+/* ---- responsive ---- */
+@media (max-width: 768px) {
+  .blocks-wrap .sidebar { width: 200px; }
+  .blocks-wrap .main .panel { height: 100%; }
+  .blocks-wrap {
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+  }
+  .blocks-wrap .sidebar,
+  .blocks-wrap .main { width: 100%; }
+  .code-panel { height: 35%; }
+  .workspace-actions { display:none; }
+}

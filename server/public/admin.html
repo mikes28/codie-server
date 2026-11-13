@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Codie Admin</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="shell">
+    <div class="brand">
+      <span class="mark">C</span>
+      <div>
+        <div class="brand-name">Codie<span class="brand-sub">admin</span></div>
+        <div class="brand-line" id="brand-line">admin</div>
+      </div>
+    </div>
+    <div class="shell-actions">
+      <span class="pill" id="admin-auth-pill">checking auth&#8230;</span>
+      <button class="btn btn-outline" id="admin-sign-out">Sign out</button>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <aside class="sidebar">
+      <div class="panel">
+        <div class="panel-head"><h2>Admin</h2></div>
+        <nav class="admin-nav">
+          <a class="nav-link" href="#" data-section="section-users">Users</a>
+          <a class="nav-link" href="#" data-section="section-codie-users">Codie Users</a>
+          <a class="nav-link" href="#" data-section="section-robots">Robots</a>
+        </nav>
+      </div>
+    </aside>
+
+    <section class="main" id="admin-root">
+      <!-- Users: GET/DELETE/PUT /api/users -->
+      <div class="panel section" id="section-users">
+        <div class="panel-head"><h2>Users</h2></div>
+        <div class="table-wrap">
+          <table class="inventory-table">
+            <thead>
+              <tr>
+                <th>Id</th><th>Username</th><th>Email</th><th>Role</th><th>Created</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="admin-users-tbody"></tbody>
+          </table>
+        </div>
+        <p class="muted small">Edit a role and click Save, or Delete a user.</p>
+      </div>
+
+      <!-- Codie users: GET/POST/PUT/DELETE /api/codie-users -->
+      <div class="panel section" id="section-codie-users">
+        <div class="panel-head"><h2>Codie Users</h2></div>
+        <button class="btn btn-primary" id="admin-new-codie">Create Codie User</button>
+
+        <div class="table-wrap" style="margin-top:10px">
+          <table class="inventory-table">
+            <thead>
+              <tr>
+                <th>Id</th><th>Name</th><th>Permissions</th><th>Assigned</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="admin-codie-users-tbody"></tbody>
+          </table>
+        </div>
+
+        <div id="admin-codie-form-section" style="display:none; margin-top:14px;">
+          <div class="admin-form">
+            <h3 id="admin-codie-form-title">Create Codie User</h3>
+            <div>
+              <label>Name</label>
+              <input type="text" id="admin-codie-name" placeholder="e.g. Codie-01" />
+            </div>
+            <div>
+              <label style="display:flex;align-items:center;gap:6px">
+                <input type="checkbox" id="admin-codie-led" />
+                <span>LED control</span>
+              </label>
+            </div>
+            <div>
+              <label style="display:flex;align-items:center;gap:6px">
+                <input type="checkbox" id="admin-codie-buzzer" />
+                <span>Buzzer control</span>
+              </label>
+            </div>
+            <div>
+              <label>Max speed (%)</label>
+              <input type="number" id="admin-codie-speed" min="-100" max="100" placeholder="optional" />
+            </div>
+            <div>
+              <label>Assign to user</label>
+              <select id="admin-codie-user"><option value="">— none —</option></select>
+            </div>
+            <div>
+              <label>Assign to robot</label>
+              <select id="admin-codie-robot"><option value="">— none —</option></select>
+            </div>
+            <div style="grid-column:1/-1; display:flex; gap:8px;">
+              <button class="btn btn-primary" form="admin-codie-form">Save</button>
+              <button class="btn btn-outline" id="admin-cancel-codie" type="button">Cancel</button>
+            </div>
+          </div>
+          <form id="admin-codie-form"></form>
+        </div>
+      </div>
+
+      <!-- Robots: GET /api/robots -->
+      <div class="panel section" id="section-robots">
+        <div class="panel-head"><h2>Robots</h2></div>
+        <div class="table-wrap">
+          <table class="inventory-table">
+            <thead>
+              <tr>
+                <th>Address</th><th>Name</th><th>Variant</th><th>Connected</th><th>RSSI</th><th>Firmware</th>
+              </tr>
+            </thead>
+            <tbody id="admin-robots-tbody"></tbody>
+          </table>
+        </div>
+        <p class="muted small">Robot list for Codie user assignment. Source: GET /api/robots.</p>
+      </div>
+    </section>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

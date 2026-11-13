@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Codie Control — Sign in</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="shell">
+    <div class="brand">
+      <span class="mark">C</span>
+      <div>
+        <div class="brand-name">Codie<span class="brand-sub">control</span></div>
+        <div class="brand-line" id="brand-line">sign in</div>
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div class="panel" style="max-width:420px; margin: 40px auto 0 auto;">
+      <h2 style="margin-top:0" id="auth-title">Sign in</h2>
+      <form id="auth-form">
+        <div class="auth-tabs">
+          <button type="button" class="auth-tab active" data-tab="login">Sign in</button>
+          <button type="button" class="auth-tab" data-tab="register">Create account</button>
+        </div>
+
+        <div id="auth-fields-login">
+          <div class="field">
+            <label>Username</label>
+            <input type="text" name="username" required placeholder="alice" />
+          </div>
+          <div class="field">
+            <label>Password</label>
+            <input type="password" name="password" required placeholder="••••••••" />
+          </div>
+        </div>
+
+        <div id="auth-fields-register" style="display:none">
+          <div class="field">
+            <label>Username</label>
+            <input type="text" name="username" required placeholder="alice" />
+          </div>
+          <div class="field">
+            <label>Email</label>
+            <input type="email" name="email" required placeholder="alice@example.com" />
+          </div>
+          <div class="field">
+            <label>Password</label>
+            <input type="password" name="password" required placeholder="••••••••" />
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary" id="auth-submit">Sign in</button>
+        <p class="auth-hint" id="auth-hint">Don't have an account? <button type="button" class="auth-link" data-tab="register">Create one</button></p>
+        <p class="auth-error" id="auth-error"></p>
+      </form>
+
+      <hr style="margin:18px 0; border:none; border-top:1px solid var(--panel-border);" />
+
+      <p class="muted small" style="text-align:center; margin: 0 0 8px 0;">Continue without an account (read-only access):</p>
+      <button class="btn btn-outline" id="guest-btn" style="width:100%">Continue as guest</button>
+      <p class="muted small" id="auth-hint-register" style="display:none; text-align:center; margin-top:8px">Already have an account? <button type="button" class="auth-link" data-tab="login">Sign in</button></p>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Codie — Block Editor</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="blocks.css" />
+</head>
+<body>
+  <header class="shell">
+    <div class="brand">
+      <span class="mark">C</span>
+      <div>
+        <div class="brand-name">Codie<span class="brand-sub">control</span></div>
+        <div class="brand-line" id="brand-line">block editor</div>
+      </div>
+    </div>
+    <div class="shell-actions">
+      <a href="index.html" class="btn btn-outline">&#8592; Control</a>
+      <span class="pill" id="socket-pill">socket &#9679;</span>
+    </div>
+  </header>
+
+  <div class="wrap blocks-wrap">
+    <aside class="sidebar">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Blocks</h2>
+          <span class="badge" id="block-count">0</span>
+        </div>
+        <div class="panel-body" id="block-palette">
+          <div class="palette-category" data-category="movement">
+            <strong>Movement</strong>
+          </div>
+          <div class="palette-category" data-category="led">
+            <strong>LEDs</strong>
+          </div>
+          <div class="palette-category" data-category="sound">
+            <strong>Sound</strong>
+          </div>
+          <div class="palette-category" data-category="control">
+            <strong>Control</strong>
+          </div>
+          <div class="empty" id="palette-hint">Drag a block into the workspace.</div>
+        </div>
+        <div class="ctrl-row" style="margin-top:10px;">
+          <button class="btn btn-outline" id="blocks-clear">Clear workspace</button>
+          <button class="btn btn-outline" id="blocks-zoom-in">&#128169;</button>
+          <button class="btn btn-outline" id="blocks-zoom-out">&#128170;</button>
+        </div>
+      </div>
+    </aside>
+
+    <section class="main">
+      <div class="panel" style="height:100%;display:flex;flex-direction:column;">
+        <div class="panel-head">
+          <h2>Workspace</h2>
+          <div class="workspace-actions">
+            <span class="pill" id="robot-pill">robot: —</span>
+          </div>
+        </div>
+        <div class="workspace" id="blocks-workspace">
+          <div class="workspace-empty">Drag blocks here to build a program.</div>
+          <div class="trash" id="blocks-trash">
+            <span class="ic">&#128465;</span>
+            <div>Delete</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel code-panel">
+        <div class="panel-head">
+          <h2>Generated Python</h2>
+          <div class="code-actions">
+            <button class="btn btn-outline" id="code-copy">Copy</button>
+            <button class="btn" id="blocks-run">Run on robot</button>
+            <button class="btn btn-outline" id="blocks-save">Save</button>
+          </div>
+        </div>
+        <div class="code-wrap">
+          <textarea id="blocks-code" spellcheck="false">def run(ctx):
+    pass
+</textarea>
+        </div>
+        <div id="code-status" class="muted small" style="margin-top:4px;">Ready</div>
+      </div>
+    </section>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="blocks.js"></script>
+</body>
+</html>

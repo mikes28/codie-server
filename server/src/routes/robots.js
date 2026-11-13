@@ -8,10 +8,16 @@
 
 'use strict';
 
+import fs from 'node:fs';
+import path from 'node:path';
+
+import { readJson, CODIE_USERS_FILE } from '../store.js';
+
+import { requireAuth, hasPermission } from '../auth.js';
+import { resolveScanDuration } from '../ble/registry.js';
+import { defaultScriptDir } from '../scripts.js';
 import { Router } from 'express';
 
-import { COMMAND_NAMES } from '../commands.js';
-import { resolveScanDuration } from '../ble/registry.js';
 
 export const SUPPORTED_VARIANTS = ['routing', 'no-routing'];
 
@@ -104,11 +110,18 @@ export function createRobotRouter({ registry, filters = {}, scripts = null }) {
   }));
 
   // POST /api/robots/:address/command — { name, params }
-  router.post('/robots/:address/command', asyncRoute(async (req, res) => {
+  router.post('/robots/:address/command', requireAuth, asyncRoute(async (req, res) => {
     const { name, params = {} } = req.body || {};
     if (!name || !COMMAND_NAMES.includes(name)) {
       const err = new Error(`Unknown command: ${name}`);
       err.status = 400;
+      throw err;
+    }
+    const codieUsers = await readJson(CODIE_USERS_FILE);
+    const permission = hasPermission(req.session.user, codieUsers, req.params.address, name, params);
+    if (!permission.allowed) {
+      const err = new Error(permission.reason);
+      err.status = 403;
       throw err;
     }
     const result = await registry.command(req.params.address, name, params);
@@ -171,6 +184,26 @@ export function createRobotRouter({ registry, filters = {}, scripts = null }) {
   router.delete('/robots/:address/script', asyncRoute(async (req, res) => {
     const ok = await registry.stopScript(req.params.address);
     res.json({ ok: ok });
+  }));
+
+  // POST /api/code/run — run generated block Python on a robot
+  router.post('/code/run', asyncRoute(async (req, res) => {
+    const { address, code } = req.body || {};
+    if (!address) {
+      const err = new Error('Missing robot address');
+      err.status = 400;
+      throw err;
+    }
+    if (!code) {
+      const err = new Error('Missing code');
+      err.status = 400;
+      throw err;
+    }
+    const scriptName = '__codie_blocks__.py';
+    const scriptPath = path.join(defaultScriptDir, scriptName);
+    fs.writeFileSync(scriptPath, String(code));
+    const result = await registry.startScript(address, scriptName);
+    res.json(result);
   }));
 
   return router;

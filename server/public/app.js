@@ -9,6 +9,8 @@
 'use strict';
 
 const socket = io();
+const isAdminPage = !!document.getElementById('admin-root');
+const isAuthPage = !!document.getElementById('auth-form');
 
 /** DOM elements. */
 const els = {
@@ -121,6 +123,25 @@ const els = {
   p9OpPowerOff: document.getElementById('p9-op-power-off'),
   p9BroadcastCmd: document.getElementById('p9-broadcast-cmd'),
   p9BroadcastSend: document.getElementById('p9-broadcast-send'),
+  // ---- auth navbar ----
+  navSignin: document.getElementById('nav-signin'),
+  logoutBtn: document.getElementById('logout-btn'),
+  authUser: document.getElementById('auth-user'),
+  authLinks: document.getElementById('auth-links'),
+  authNav: document.getElementById('auth-nav'),
+  // ---- Python editor ----
+  codeSelect: document.getElementById('code-select'),
+  codeSave: document.getElementById('code-save'),
+  codeRun: document.getElementById('code-run'),
+  codeDelete: document.getElementById('code-delete'),
+  codeNew: document.getElementById('code-new'),
+  pythonCode: document.getElementById('python-code'),
+  editorOutput: document.getElementById('editor-output'),
+  editorStatus: document.getElementById('editor-status'),
+  // ---- code list ----
+  codeList: document.getElementById('code-list'),
+  codeListEmpty: document.getElementById('code-list-empty'),
+
 };
 
 // telemetry value elements
@@ -163,6 +184,15 @@ let config = {
     macOnly: false,
   },
 };
+/** Auth state. */
+let authToken = localStorage.getItem('codie_token') || null;
+let authUser = null;
+let authPermissions = new Set();
+let authIsGuest = false;
+/** Editor state. */
+let editorCodes = [];
+let editingCodeId = null;
+
 /** Client-side MAC blocklist (not a backend field; applied in renderRobots). */
 let blockedMacs = new Set();
 /** Auto-connect MAC addresses. */
@@ -176,6 +206,328 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text == null ? '' : String(text);
   return div.innerHTML;
+}
+/** Auth headers with bearer token. */
+function authHeaders() {
+  const headers = {};
+  if (authToken) headers['Authorization'] = 'Bearer ' + authToken;
+  return headers;
+}
+
+/** Fetch to /api with auth token and JSON handling. */
+async function apiFetch(path, options = {}) {
+  const headers = { 'Content-Type': 'application/json', ...authHeaders(), ...options.headers };
+  const opts = { method: options.method || 'GET', headers };
+  if (options.body) opts.body = JSON.stringify(options.body);
+  const res = await fetch('/api' + path, opts);
+  const ct = res.headers.get('content-type') || '';
+  const data = ct.includes('application/json') ? await res.json() : await res.text();
+  if (!res.ok) {
+    const msg = (data && data.message) || data || `Request failed (${res.status})`;
+    throw new Error(String(msg));
+  }
+  return data;
+}
+
+/** POST /api/auth/login */
+async function authLogin(username, password) {
+  const data = await apiFetch('/auth/login', { method: 'POST', body: { username, password } });
+  return data;
+}
+
+/** POST /api/auth/register */
+async function authRegister(username, email, password) {
+  const data = await apiFetch('/auth/register', { method: 'POST', body: { username, email, password } });
+  return data;
+}
+
+/** POST /api/auth/logout */
+async function authLogout() {
+  try {
+    await apiFetch('/auth/logout', { method: 'POST' });
+  } catch (error) {
+    // ignore logout errors; clear local state regardless
+  }
+}
+
+/** GET /api/auth/me — returns { user } or throws on 401 */
+async function authMe() {
+  return await apiFetch('/auth/me');
+}
+
+/** Store auth state in memory + localStorage, then refresh UI. */
+function setAuth(token, user) {
+  authToken = token;
+  localStorage.setItem('codie_token', token);
+  authUser = user || null;
+  if (user) {
+    localStorage.setItem('codie_user', JSON.stringify(user));
+    const perms = Array.isArray(user.permissions) ? user.permissions : [];
+    authPermissions = new Set(perms);
+  } else {
+    authPermissions = new Set();
+  }
+  updateAuthUI();
+}
+
+/** Clear auth state. */
+function clearAuth() {
+  authToken = null;
+  authUser = null;
+  authPermissions = new Set();
+  authIsGuest = false;
+  localStorage.removeItem('codie_token');
+  localStorage.removeItem('codie_user');
+  updateAuthUI();
+}
+
+/** Enter read-only guest mode. */
+function setGuest() {
+  authToken = null;
+  authUser = { username: 'guest', role: 'guest', permissions: [] };
+  authPermissions = new Set();
+  authIsGuest = true;
+  localStorage.removeItem('codie_token');
+  localStorage.removeItem('codie_user');
+  updateAuthUI();
+}
+
+/** True if the current user has the given permission. */
+function hasPermission(perm) {
+  if (authIsGuest) return false;
+  return authPermissions.has(perm);
+}
+
+/** Update the navbar auth state (login links vs user + logout). */
+function updateAuthUI() {
+  const loggedIn = !!authUser && !authIsGuest;
+  if (els.authLinks) els.authLinks.style.display = loggedIn ? 'none' : 'flex';
+  if (els.authNav) els.authNav.style.display = loggedIn ? 'flex' : 'none';
+  if (els.authUser) els.authUser.textContent = authUser ? (authUser.username || 'user') : '';
+  if (els.navSignin) els.navSignin.href = 'auth.html';
+  // Disable control buttons whose permission the user lacks.
+  applyPermissions();
+}
+
+/** Disable/enable buttons based on user permissions. */
+function applyPermissions() {
+  document.querySelectorAll('button[data-permission]').forEach((button) => {
+
+    const perm = button.dataset.permission;
+    const ok = hasPermission(perm);
+    if (!ok) {
+      button.classList.add('disabled-perm');
+      button.disabled = true;
+      button.title = 'Permission required: ' + perm;
+    } else {
+      button.classList.remove('disabled-perm');
+      button.disabled = false;
+      button.title = '';
+    }
+  });
+  // Editor run/save/delete buttons
+  if (els.codeRun) {
+    if (!hasPermission('code:run')) {
+      els.codeRun.classList.add('disabled-perm');
+      els.codeRun.disabled = true;
+    } else {
+      els.codeRun.classList.remove('disabled-perm');
+      els.codeRun.disabled = false;
+    }
+  }
+  if (els.codeSave) {
+    if (!hasPermission('code:write')) {
+      els.codeSave.classList.add('disabled-perm');
+      els.codeSave.disabled = true;
+    } else {
+      els.codeSave.classList.remove('disabled-perm');
+      els.codeSave.disabled = false;
+    }
+  }
+  if (els.codeDelete) {
+    if (!hasPermission('code:write')) {
+      els.codeDelete.classList.add('disabled-perm');
+      els.codeDelete.disabled = true;
+    } else {
+      els.codeDelete.classList.remove('disabled-perm');
+      els.codeDelete.disabled = false;
+    }
+  }
+}
+
+/** Append a line to the editor output panel. */
+function editorLog(text, kind = 'info') {
+  if (!els.editorOutput) return;
+  const line = document.createElement('div');
+  line.className = 'line ' + (kind === 'ok' ? 'ok' : kind === 'err' ? 'err' : '');
+  line.textContent = text;
+  els.editorOutput.appendChild(line);
+  els.editorOutput.scrollTop = els.editorOutput.scrollHeight;
+}
+
+/** Clear the editor output panel. */
+function editorClearLog() {
+  if (els.editorOutput) els.editorOutput.innerHTML = '';
+}
+
+/** Load the list of saved Python codes from GET /api/code. */
+async function loadCodeList() {
+  if (!els.codeList || !els.codeSelect) return;
+  editorClearLog();
+  els.codeList.innerHTML = '';
+  if (els.codeListEmpty) els.codeListEmpty.style.display = 'none';
+  let codes = [];
+  try {
+    const data = await apiFetch('/code');
+    codes = Array.isArray(data) ? data : (data.codes || []);
+  } catch (error) {
+    // Not authenticated or endpoint not available yet — show empty state.
+    if (els.codeListEmpty) els.codeListEmpty.style.display = 'block';
+    els.codeListEmpty.textContent = 'Unable to load saved code: ' + error.message;
+    return;
+  }
+  editorCodes = codes;
+  // Populate the <select> dropdown.
+  if (els.codeSelect) {
+    els.codeSelect.innerHTML = '<option value="">-- Load saved code --</option>';
+    for (const c of codes) {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.title || ('Code #' + c.id);
+      els.codeSelect.appendChild(opt);
+    }
+  }
+  // Render the code list panel.
+  if (codes.length === 0) {
+    if (els.codeListEmpty) els.codeListEmpty.style.display = 'block';
+  } else {
+    for (const c of codes) {
+      const item = document.createElement('div');
+      item.className = 'code-item';
+      item.dataset.id = c.id;
+      const updated = c.updatedAt ? new Date(c.updatedAt).toLocaleString() : '';
+      item.innerHTML =
+        '<div><div class="code-title">' + escapeHtml(String(c.title || '')) + '</div>' +
+        '<div class="code-meta">' + escapeHtml(updated) + '</div></div>' +
+        '<button class="btn btn-sm" data-action="load">Load</button> ' +
+        '<button class="btn btn-sm btn-danger" data-action="delete">Delete</button>';
+      item.querySelector('[data-action="load"]').addEventListener('click', () => loadCode(c.id));
+      item.querySelector('[data-action="delete"]').addEventListener('click', () => deleteCode(c.id));
+      item.addEventListener('click', (event) => {
+        if (event.target.tagName === 'BUTTON') return;
+        loadCode(c.id);
+      });
+      els.codeList.appendChild(item);
+    }
+  }
+}
+
+/** Load a single code into the editor. */
+async function loadCode(id) {
+  if (!els.pythonCode) return;
+  editorClearLog();
+  editorStatusText('loading…');
+  let data;
+  try {
+    data = await apiFetch('/code/' + encodeURIComponent(id));
+  } catch (error) {
+    editorLog('Failed to load code: ' + error.message, 'err');
+    editorStatusText('error');
+    return;
+  }
+  const code = data.code || data;
+  editingCodeId = code.id;
+  if (els.pythonCode) els.pythonCode.value = code.code || '';
+  if (els.codeSelect) els.codeSelect.value = code.id;
+  editorStatusText('loaded');
+}
+
+/** Save the current editor code via POST/PUT /api/code. */
+async function saveCode() {
+  if (!els.pythonCode) return;
+  const title = prompt('Code title:', '');
+  if (title === null) return;
+  const body = { title: title.trim() || 'Untitled', code: els.pythonCode.value };
+  let data;
+  try {
+    if (editingCodeId) {
+      data = await apiFetch('/code/' + encodeURIComponent(editingCodeId), { method: 'PUT', body });
+    } else {
+      data = await apiFetch('/code', { method: 'POST', body });
+    }
+  } catch (error) {
+    editorLog('Save failed: ' + error.message, 'err');
+    editorStatusText('save failed');
+    toast('Save failed: ' + error.message, 'error');
+    return;
+  }
+  const saved = data.code || data;
+  editingCodeId = saved.id;
+  if (els.codeSelect) els.codeSelect.value = saved.id;
+  editorLog('Saved: ' + escapeHtml(String(saved.title || '')));
+  editorStatusText('saved');
+  toast('Code saved');
+  await loadCodeList();
+}
+
+/** Run the current code on the robot via POST /api/code/:id/run. */
+async function runCode() {
+  if (!els.pythonCode) return;
+  if (!hasPermission('code:run')) {
+    toast('Permission required: code:run', 'error');
+    return;
+  }
+  const codeId = editingCodeId;
+  if (!codeId) {
+    toast('Save the code before running', 'error');
+    return;
+  }
+  editorClearLog();
+  editorStatusText('running…');
+  try {
+    const data = await apiFetch('/code/' + encodeURIComponent(codeId) + '/run', { method: 'POST' });
+    editorLog(JSON.stringify(data));
+    editorStatusText('done');
+    toast('Code ran');
+  } catch (error) {
+    editorLog('Run failed: ' + error.message, 'err');
+    editorStatusText('run failed');
+    toast('Run failed: ' + error.message, 'error');
+  }
+}
+
+/** Delete a saved code. */
+async function deleteCode(id) {
+  if (!confirm('Delete this code?')) return;
+  try {
+    await apiFetch('/code/' + encodeURIComponent(id), { method: 'DELETE' });
+    if (editingCodeId === id) {
+      editingCodeId = null;
+      if (els.pythonCode) els.pythonCode.value = '';
+      if (els.codeSelect) els.codeSelect.value = '';
+      editorStatusText('—');
+    }
+    editorLog('Code deleted');
+    toast('Code deleted');
+    await loadCodeList();
+  } catch (error) {
+    editorLog('Delete failed: ' + error.message, 'err');
+    toast('Delete failed: ' + error.message, 'error');
+  }
+}
+
+/** Start a new (empty) code. */
+function newCode() {
+  editingCodeId = null;
+  if (els.pythonCode) els.pythonCode.value = '';
+  if (els.codeSelect) els.codeSelect.value = '';
+  editorClearLog();
+  editorStatusText('new');
+}
+
+/** Set the editor status badge text. */
+function editorStatusText(text) {
+  if (els.editorStatus) els.editorStatus.textContent = text;
 }
 
 /** Status toast. */
@@ -301,10 +653,17 @@ function socketRequest(type, payload) {
 
 /** Send a robot command. */
 async function sendCommand(name, params = {}) {
+  const cmdPerms = { beep: 'buzzer', morse: 'buzzer', tune: 'buzzer', led: 'led', ledSingle: 'led', ledsOff: 'led', ledAnim: 'led', forward: 'drive', backward: 'drive', turn: 'drive', stop: 'drive', driveSpeed: 'drive' };
+  const perm = cmdPerms[name];
+  if (perm && !hasPermission(perm)) {
+    toast('Permission required: ' + perm, 'error');
+    return;
+  }
   if (!activeAddress) {
     toast('No robot selected', 'error');
     return;
   }
+
   try {
     const result = await socketRequest('robot:command', { address: activeAddress, name, params });
     toast(`OK: ${name}`);
@@ -754,6 +1113,9 @@ socket.on('script:event', (payload) => {
   appendScriptLog(payload.event || {});
 });
 
+if (isAdminPage) {
+  initAdmin();
+} else {
 // ---- controls ----
 
 els.scanBtn.addEventListener('click', () => {
@@ -1068,3 +1430,403 @@ loadConfig();
 
 renderRobots();
 
+}
+
+// ---- Auth page (auth.html) ----
+if (isAuthPage) {
+  const authForm = document.getElementById('auth-form');
+  const guestBtn = document.getElementById('guest-btn');
+  const loginFields = document.getElementById('auth-fields-login');
+  const registerFields = document.getElementById('auth-fields-register');
+  const registerHint = document.getElementById('auth-hint-register');
+  const loginHint = document.getElementById('auth-hint');
+  const submitBtn = document.getElementById('auth-submit');
+  const errorEl = document.getElementById('auth-error');
+  const titleEl = document.getElementById('auth-title');
+
+  document.querySelectorAll('.auth-tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      const show = tab.dataset.tab;
+      if (loginFields) loginFields.style.display = show === 'login' ? '' : 'none';
+      if (registerFields) registerFields.style.display = show === 'register' ? '' : 'none';
+      if (loginHint) loginHint.style.display = show === 'login' ? 'none' : '';
+      if (registerHint) registerHint.style.display = show === 'register' ? 'none' : '';
+      document.querySelectorAll('.auth-tab').forEach((t) => {
+        t.classList.toggle('active', t.dataset.tab === show);
+      });
+      if (titleEl) titleEl.textContent = show === 'register' ? 'Create account' : 'Sign in';
+      if (submitBtn) submitBtn.textContent = show === 'register' ? 'Create account' : 'Sign in';
+      if (errorEl) errorEl.textContent = '';
+    });
+  });
+
+  if (authForm) {
+    authForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (errorEl) errorEl.textContent = '';
+      const formData = new FormData(authForm);
+      const username = formData.get('username');
+      const email = formData.get('email');
+      const password = formData.get('password');
+      const isRegister = document.getElementById('auth-fields-register').style.display !== 'none';
+      try {
+        if (isRegister) {
+          await authRegister(username, email, password);
+          toast('Account created. Please sign in.', 'info');
+          document.querySelector('.auth-tab[data-tab="login"]').click();
+        } else {
+          const data = await authLogin(username, password);
+          setAuth(data.token, data.user);
+          location.replace('/');
+        }
+      } catch (error) {
+        if (errorEl) errorEl.textContent = error.message || 'Authentication failed';
+        toast(error.message || 'Authentication failed', 'error');
+      }
+    });
+  }
+
+  if (guestBtn) {
+    guestBtn.addEventListener('click', () => {
+      setGuest();
+      location.replace('/');
+    });
+  }
+}
+
+// ---- Python editor handlers ----
+if (els.codeSave) els.codeSave.addEventListener('click', saveCode);
+if (els.codeRun) els.codeRun.addEventListener('click', runCode);
+if (els.codeDelete) els.codeDelete.addEventListener('click', () => {
+  if (editingCodeId) deleteCode(editingCodeId);
+});
+if (els.codeNew) els.codeNew.addEventListener('click', newCode);
+if (els.codeSelect) els.codeSelect.addEventListener('change', (event) => {
+  if (event.target.value) loadCode(event.target.value);
+});
+
+// ---- Admin UI (fetch-backed REST; runs only on admin.html) ----
+async function adminFetch(path, options = {}) {
+  const headers = { 'Content-Type': 'application/json', ...options.headers };
+  const opts = { method: options.method || 'GET', headers };
+  if (options.body) opts.body = JSON.stringify(options.body);
+  const res = await fetch('/api' + path, opts);
+  const ct = res.headers.get('content-type') || '';
+  const data = ct.includes('application/json') ? await res.json() : await res.text();
+  if (!res.ok) {
+    const msg = (data && data.message) || data || `Request failed (${res.status})`;
+    throw new Error(String(msg));
+  }
+  return data;
+}
+
+async function ensureAdmin() {
+  const pill = document.getElementById('admin-auth-pill');
+  try {
+    const me = await adminFetch('/auth/me');
+    if (!me || me.role !== 'admin') {
+      if (pill) { pill.textContent = 'not authorized'; pill.className = 'pill off'; }
+      location.replace('/');
+      return false;
+    }
+    if (pill) { pill.textContent = 'admin: ' + (me.username || me.id || ''); pill.className = 'pill on'; }
+    return true;
+  } catch (error) {
+    if (pill) { pill.textContent = 'auth failed'; pill.className = 'pill off'; }
+    location.replace('/');
+    return false;
+  }
+}
+
+function renderSection(sectionId) {
+  document.querySelectorAll('#admin-root .section').forEach((s) => { s.classList.remove('current'); });
+  document.querySelectorAll('.admin-nav .nav-link').forEach((a) => { a.classList.remove('current'); });
+  const section = document.getElementById(sectionId);
+  const link = document.querySelector('.admin-nav .nav-link[data-section="' + sectionId + '"]');
+  if (section) section.classList.add('current');
+  if (link) link.classList.add('current');
+}
+
+/* ---------- state ---------- */
+let users = [];
+let codieUsers = [];
+let editingCodieId = null;
+
+/* ---------- Users: GET/DELETE/PUT /api/users ---------- */
+async function loadUsers() {
+  let data = [];
+  try {
+    data = await adminFetch('/users');
+  } catch (error) {
+    data = [];
+    toast('Failed to load users: ' + error.message, 'error');
+  }
+  users = Array.isArray(data) ? data : (data.users || []);
+  const tbody = document.getElementById('admin-users-tbody');
+  tbody.innerHTML = '';
+  for (const user of users) {
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td>' + escapeHtml(String(user.id)) + '</td>' +
+      '<td>' + escapeHtml(String(user.username)) + '</td>' +
+      '<td>' + escapeHtml(String(user.email)) + '</td>' +
+      '<td><select class="admin-role-select" data-id="' + escapeHtml(String(user.id)) + '">' +
+      '<option value="user"' + (user.role === 'user' ? ' selected' : '') + '>user</option>' +
+      '<option value="admin"' + (user.role === 'admin' ? ' selected' : '') + '>admin</option>' +
+      '</select> ' +
+      '<button class="btn btn-sm btn-primary admin-save-role" data-id="' + escapeHtml(String(user.id)) + '">Save</button></td>' +
+      '<td>' + escapeHtml(String(user.createdAt || '')) + '</td>' +
+      '<td><button class="btn btn-sm btn-danger admin-delete-user" data-id="' + escapeHtml(String(user.id)) + '">Delete</button></td>';
+    tbody.appendChild(tr);
+  }
+  const userSelect = document.getElementById('admin-codie-user');
+  if (userSelect) {
+    const current = userSelect.value;
+    userSelect.innerHTML = '<option value="">— none —</option>';
+    for (const user of users) {
+      const opt = document.createElement('option');
+      opt.value = user.id;
+      opt.textContent = user.username || user.id;
+      if (String(user.id) === current) opt.selected = true;
+      userSelect.appendChild(opt);
+    }
+  }
+}
+
+async function saveUserRole(id, role) {
+  await adminFetch('/users/' + encodeURIComponent(id), { method: 'PUT', body: { role } });
+  toast('Role updated');
+  await loadUsers();
+}
+
+async function deleteUser(id) {
+  if (!confirm('Delete this user?')) return;
+  await adminFetch('/users/' + encodeURIComponent(id), { method: 'DELETE' });
+  toast('User deleted');
+  await loadUsers();
+}
+
+/* ---------- Codie users: GET/POST/PUT/DELETE /api/codie-users ---------- */
+async function loadCodieUsers() {
+  let data = [];
+  try {
+    data = await adminFetch('/codie-users');
+  } catch (error) {
+    data = [];
+    toast('Failed to load codie users: ' + error.message, 'error');
+  }
+  codieUsers = Array.isArray(data) ? data : (data.codieUsers || []);
+  const tbody = document.getElementById('admin-codie-users-tbody');
+  tbody.innerHTML = '';
+  for (const c of codieUsers) {
+    const perms = [];
+    if (c.led) perms.push('LED');
+    if (c.buzzer) perms.push('Buzzer');
+    if (c.maxSpeed != null) perms.push('MaxSpeed ' + c.maxSpeed);
+    const assigned = c.robotAddress ? 'robot:' + c.robotAddress : (c.userId ? 'user:' + c.userId : '—');
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td>' + escapeHtml(String(c.id)) + '</td>' +
+      '<td>' + escapeHtml(String(c.name)) + '</td>' +
+      '<td>' + (perms.length ? perms.join(', ') : '—') + '</td>' +
+      '<td>' + escapeHtml(String(assigned)) + '</td>' +
+      '<td>' +
+      '<button class="btn btn-sm admin-edit-codie" data-id="' + escapeHtml(String(c.id)) + '">Edit</button> ' +
+      '<button class="btn btn-sm btn-danger admin-delete-codie" data-id="' + escapeHtml(String(c.id)) + '">Delete</button>' +
+      '</td>';
+    tbody.appendChild(tr);
+  }
+}
+
+function openCodieForm(c) {
+  editingCodieId = c ? c.id : null;
+  const title = document.getElementById('admin-codie-form-title');
+  const nameInput = document.getElementById('admin-codie-name');
+  const ledInput = document.getElementById('admin-codie-led');
+  const buzzerInput = document.getElementById('admin-codie-buzzer');
+  const speedInput = document.getElementById('admin-codie-speed');
+  const robotSelect = document.getElementById('admin-codie-robot');
+  const form = document.getElementById('admin-codie-form');
+  if (form.reset) form.reset();
+  nameInput.value = c ? c.name : '';
+  ledInput.checked = !!c && !!c.led;
+  buzzerInput.checked = !!c && !!c.buzzer;
+  speedInput.value = c && c.maxSpeed != null ? c.maxSpeed : '';
+  if (robotSelect) robotSelect.value = c && c.robotAddress ? c.robotAddress : '';
+  title.textContent = c ? 'Edit Codie User' : 'Create Codie User';
+  document.getElementById('admin-codie-form-section').style.display = 'block';
+  renderSection('section-codie-users');
+}
+
+function closeCodieForm() {
+  editingCodieId = null;
+  document.getElementById('admin-codie-form-section').style.display = 'none';
+}
+
+async function saveCodieUser() {
+  const nameInput = document.getElementById('admin-codie-name');
+  const ledInput = document.getElementById('admin-codie-led');
+  const buzzerInput = document.getElementById('admin-codie-buzzer');
+  const speedInput = document.getElementById('admin-codie-speed');
+  const userSelect = document.getElementById('admin-codie-user');
+  const robotSelect = document.getElementById('admin-codie-robot');
+  const body = {
+    name: nameInput.value.trim(),
+    led: ledInput.checked,
+    buzzer: buzzerInput.checked,
+    maxSpeed: speedInput.value === '' ? null : Number(speedInput.value),
+    userId: userSelect.value || null,
+    robotAddress: robotSelect.value || null,
+  };
+  if (!body.name) { toast('Name is required', 'error'); return; }
+  try {
+    if (editingCodieId) {
+      await adminFetch('/codie-users/' + encodeURIComponent(editingCodieId), { method: 'PUT', body });
+    } else {
+      await adminFetch('/codie-users', { method: 'POST', body });
+    }
+  } catch (error) {
+    toast('Save failed: ' + error.message, 'error');
+    return;
+  }
+  toast('Codie user saved');
+  closeCodieForm();
+  await loadCodieUsers();
+}
+
+async function deleteCodieUser(id) {
+  if (!confirm('Delete this codie user?')) return;
+  await adminFetch('/codie-users/' + encodeURIComponent(id), { method: 'DELETE' });
+  toast('Codie user deleted');
+  await loadCodieUsers();
+}
+
+/* ---------- Robots: GET /api/robots (assignment dropdown source) ---------- */
+async function loadRobots() {
+  let data = [];
+  try {
+    data = await adminFetch('/robots');
+  } catch (error) {
+    data = [];
+    toast('Failed to load robots: ' + error.message, 'error');
+  }
+  robots = Array.isArray(data) ? data : (data.robots || []);
+  const tbody = document.getElementById('admin-robots-tbody');
+  tbody.innerHTML = '';
+  for (const r of robots) {
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td>' + escapeHtml(String(r.address || r.id || '')) + '</td>' +
+      '<td>' + escapeHtml(String(r.name || '')) + '</td>' +
+      '<td>' + escapeHtml(String(r.variant || '')) + '</td>' +
+      '<td>' + (r.connected ? 'connected' : 'disconnected') + '</td>' +
+      '<td>' + escapeHtml(String(r.rssi !== undefined ? r.rssi : '')) + '</td>' +
+      '<td>' + escapeHtml(String(r.firmware || '')) + '</td>';
+    tbody.appendChild(tr);
+  }
+  const robotSelect = document.getElementById('admin-codie-robot');
+  if (robotSelect) {
+    const current = robotSelect.value;
+    robotSelect.innerHTML = '<option value="">— none —</option>';
+    for (const r of robots) {
+      const addr = r.address || r.id;
+      const opt = document.createElement('option');
+      opt.value = addr;
+      opt.textContent = (r.name || addr) + ' (' + addr + ')';
+      if (String(addr) === current) opt.selected = true;
+      robotSelect.appendChild(opt);
+    }
+  }
+}
+
+/* ---------- init ---------- */
+async function initAdmin() {
+  const ok = await ensureAdmin();
+  if (!ok) return;
+
+  document.getElementById('admin-sign-out').addEventListener('click', () => {
+    location.replace('/');
+  });
+
+  document.querySelectorAll('.admin-nav .nav-link').forEach((a) => {
+    a.addEventListener('click', (event) => {
+      event.preventDefault();
+      renderSection(a.getAttribute('data-section'));
+    });
+  });
+
+  document.getElementById('admin-new-codie').addEventListener('click', () => openCodieForm(null));
+  document.getElementById('admin-cancel-codie').addEventListener('click', closeCodieForm);
+  document.getElementById('admin-codie-form').addEventListener('submit', (event) => {
+    event.preventDefault();
+    saveCodieUser();
+  });
+
+  document.getElementById('admin-users-tbody').addEventListener('click', (event) => {
+    const btn = event.target.closest('button');
+    if (!btn) return;
+    const id = btn.getAttribute('data-id');
+    if (!id) return;
+    if (btn.classList.contains('admin-save-role')) {
+      const row = btn.closest('tr');
+      const select = row.querySelector('.admin-role-select');
+      saveUserRole(id, select.value);
+    } else if (btn.classList.contains('admin-delete-user')) {
+      deleteUser(id);
+    }
+  });
+
+  document.getElementById('admin-codie-users-tbody').addEventListener('click', (event) => {
+    const btn = event.target.closest('button');
+    if (!btn) return;
+    const id = btn.getAttribute('data-id');
+    if (!id) return;
+    if (btn.classList.contains('admin-edit-codie')) {
+      const c = codieUsers.find((x) => String(x.id) === id);
+      openCodieForm(c || null);
+    } else if (btn.classList.contains('admin-delete-codie')) {
+      deleteCodieUser(id);
+    }
+  });
+
+  await loadUsers();
+  await loadCodieUsers();
+  await loadRobots();
+  renderSection('section-users');
+}
+/* ---------- app init ---------- */
+(async function init() {
+  // Restore auth state from localStorage + validate with the backend.
+  if (authToken) {
+    try {
+      const data = await authMe();
+      setAuth(authToken, data.user);
+      if (isAuthPage) location.replace('/');
+
+    } catch (error) {
+      // Token invalid/expired — clear it.
+      clearAuth();
+    }
+  } else if (isAuthPage) {
+    // On auth page, no need to do anything special.
+  }
+
+  if (isAdminPage) {
+    await initAdmin();
+    return;
+  }
+
+  // index.html: load saved code list and refresh permission UI.
+  await loadCodeList();
+  updateAuthUI();
+
+  // Logout button (shown on index after login).
+  if (els.logoutBtn) {
+    els.logoutBtn.addEventListener('click', async (event) => {
+      event.preventDefault();
+      await authLogout();
+      clearAuth();
+      location.replace('/');
+    });
+  }
+})();
