@@ -73,6 +73,14 @@ export class RobotRegistry extends EventEmitter {
     return this._robots.get(normalizeAddress(address)) ?? null;
   }
 
+  /** Update BLE discovery filters at runtime (name/UUID/MAC allowlist/macOnly).
+   * Applied to the scanner so the next scan uses the new filters. */
+  setFilters(filters = {}) {
+    this.filters = { ...this.filters, ...filters };
+    if (this._scanner) this._scanner.filters = this.filters;
+    return this.filters;
+  }
+
   // ------------------------------------------------------------------
   // scan
   // ------------------------------------------------------------------

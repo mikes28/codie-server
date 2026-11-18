@@ -55,6 +55,7 @@ export const CMD_LIGHT = 0x106a; // (sensor) -> u16 (12 bit)
 export const CMD_LINE = 0x106b; // (sensor) -> left u16, right u16 (12 bit)
 export const CMD_MIC = 0x106c; // (sensor) -> u16
 export const CMD_BATTERY_VOLTAGE = 0x106e; // (sensor) -> u16; no reply on this firmware
+export const CMD_CONSOLE = 0x106f; // console / proxy command — text args (wire id pending firmware confirmation)
 
 /** Reply args start after INFO(1)+SEQ(2)+CMD(2)+ARGLEN(2)+REQSEQ(2) = 9. */
 export const RESPONSE_ARG_POS = 9;

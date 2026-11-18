@@ -431,6 +431,13 @@ export class CodieClient extends EventEmitter {
     return this._sendFrameWithSeq(frame);
   }
 
+  async proxyCommand(text) {
+    if (!this._connected) throw new Error(`Robot ${this.address} not connected`);
+    const args = Buffer.from(text, 'utf8');
+    const { frame } = p.buildFrame(p.CMD_CONSOLE, args);
+    return this._sendFrameWithSeq(frame);
+  }
+
   // ------------------------------------------------------------------
   // sensor reads
   // ------------------------------------------------------------------

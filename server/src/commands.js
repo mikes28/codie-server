@@ -20,8 +20,8 @@ const HEX_COLOR = /^#?[0-9a-fA-F]{6}$/;
 
 export const COMMAND_NAMES = [
   'beep', 'morse', 'tune', 'led', 'ledSingle', 'ledsOff', 'ledAnim',
-  'forward', 'backward', 'turn', 'stop', 'status', 'battery', 'sonar',
-  'light', 'line', 'mic',
+  'driveSpeed', 'forward', 'backward', 'turn', 'stop', 'status',
+  'battery', 'sonar', 'light', 'line', 'mic', 'proxy',
 ];
 
 /** Validate a number parameter. */
@@ -126,31 +126,17 @@ export async function runCommand(client, name, params = {}) {
       await client.driveSpeed(0, 0);
       return { action: 'stop' };
     }
-
-    // ----- Sensors -----
-    case 'status': {
-      const result = await client.status();
-      return { action: 'status', ...result };
+    case 'driveSpeed': {
+      const left = numberParam(params.left, 'left', { min: -100, max: 100, integer: true });
+      const right = numberParam(params.right, 'right', { min: -100, max: 100, integer: true });
+      await client.driveSpeed(left, right);
+      return { action: 'driveSpeed', left, right };
     }
-    case 'battery': {
-      const v = await client.battery();
-      return { action: 'battery', battery: requireReading(v, 'battery') };
-    }
-    case 'sonar': {
-      const v = await client.sonar();
-      return { action: 'sonar', sonar: requireReading(v, 'sonar') };
-    }
-    case 'light': {
-      const v = await client.light();
-      return { action: 'light', light: requireReading(v, 'light') };
-    }
-    case 'line': {
-      const v = await client.line();
-      return { action: 'line', line: requireReading(v, 'line') };
-    }
-    case 'mic': {
-      const v = await client.mic();
-      return { action: 'mic', mic: requireReading(v, 'mic') };
+    case 'proxy': {
+      const text = String(params.text ?? '').trim();
+      if (!text) throw new Error('proxy: text is required');
+      const reply = await client.proxyCommand(text);
+      return { action: 'proxy', text, reply };
     }
 
     default:
